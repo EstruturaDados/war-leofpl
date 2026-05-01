@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 // --- Constantes Globais ---
 // Definem valores fixos para o número de territórios, missões e tamanho máximo de strings, facilitando a manutenção.
@@ -37,6 +38,7 @@ struct territorio *pterritorio; //ponteiro do struct territorio
 
 //Definição de variáveis
 int opcao;
+int opcao2;
 int Nterritorio = 0;
 int Nterritorios = 1;
 
@@ -80,10 +82,28 @@ void exibirMenuPrincipal(){
 void inicializarTerritorios(){
             
             if (Nterritorio >= Nterritorios) {
-            printf("\nLimite de territórios atingido!\n");
-            return;
+            printf("\nLimite de territórios atingido! Quer começar um novo cadastro?\n");
+            printf("1 - Sim\n");
+            printf("2 - Não\n");
+            scanf("%d", &opcao2);
+            if (opcao2 == 1) {
+                Nterritorio = 0;
+            } else if (opcao2 == 2) {
+                return;
+            } else {
+                printf("Opção inválida tente novamente\n");
+                scanf("%d", &opcao2);
             }
-
+        }
+            
+            
+            printf("\nQuantos territórios no total:");
+            scanf("%d", &Nterritorios);
+            limparBufferEntrada();
+            free(pterritorio);     // libera antigo
+            alocarMapa();          // realoca com novo tamanho
+            
+            for (int i = 0; i < Nterritorios; i++) {
             printf("\n-----------------------------\n");
             printf("TERRITÓRIO %d", Nterritorio+1);
             printf("\nDigite o nome:");
@@ -94,6 +114,7 @@ void inicializarTerritorios(){
             scanf("%d", &pterritorio[Nterritorio].Ntropas);
             Nterritorio++;
             limparBufferEntrada();
+            }
             printf("\nPressione Enter para continuar...\n");
             
 }
@@ -108,7 +129,7 @@ void exibirMapa(){
             } else {
                 for (int i=0; i < Nterritorio; i++) {
                 printf("-----------------------------\n");
-                printf("TERRITÓRIO %d", i+1);
+                printf("TERRITÓRIO %d", i);
                 printf("\nnome %s", pterritorio[i].nome);
                 printf("cor %s", pterritorio[i].cor);
                 printf("Número de tropas %d", pterritorio[i].Ntropas);
@@ -119,10 +140,88 @@ void exibirMapa(){
             limparBufferEntrada();
 }
 
+// simularAtaque():
+// Executa a lógica de uma batalha entre dois territórios.
+// Realiza validações, rola os dados, compara os resultados e atualiza o número de tropas.
+// Se um território for conquistado, atualiza seu dono e move uma tropa.
+void simularAtaque(struct territorio* atacante, struct territorio* defensor){
+
+    if (atacante->Ntropas < 2) {
+        printf("\nAtaque inválido! É necessário pelo menos 2 tropas para atacar.\n");
+        return;
+    }
+
+    printf("\n %s está atacando %s !\n", atacante->nome, defensor->nome);
+
+    int dadoAtacante = rand() % 6 + 1;
+    int dadoDefensor = rand() % 6 + 1;
+
+    printf("Dado atacante: %d\n", dadoAtacante);
+    printf("Dado defensor: %d\n", dadoDefensor);
+
+    if (dadoAtacante > dadoDefensor) {
+        defensor->Ntropas--;
+        printf("Defensor perdeu 1 tropa!\n");
+    } else {
+        atacante->Ntropas--;
+        printf("Atacante perdeu 1 tropa!\n");
+    }
+
+    // Verifica conquista
+    if (defensor->Ntropas <= 0) {
+        printf("\nTerritório conquistado!\n");
+
+        defensor->Ntropas = floor((atacante->Ntropas)/2);
+        atacante->Ntropas = (atacante->Ntropas) - (defensor->Ntropas);
+
+        strcpy(defensor->cor, atacante->cor);
+    }
+}
+
 // faseDeAtaque():
 // Gerencia a interface para a ação de ataque, solicitando ao jogador os territórios de origem e destino.
 // Chama a função simularAtaque() para executar a lógica da batalha.
+void faseDeAtaque(){
 
+    if (Nterritorio < 2) {
+        printf("\nÉ necessário pelo menos 2 territórios para atacar.\n");
+        return;
+    }
+
+    int iAtacante, iDefensor;
+
+    // Escolha do atacante
+    printf("\nEscolha o território ATACANTE (índice): ");
+    scanf("%d", &iAtacante);
+    limparBufferEntrada();
+
+    // Escolha do defensor
+    printf("Escolha o território DEFENSOR (índice): ");
+    scanf("%d", &iDefensor);
+    limparBufferEntrada();
+
+    if (iAtacante < 0 || iAtacante >= Nterritorio ||
+        iDefensor < 0 || iDefensor >= Nterritorio) {
+        printf("\nÍndice inválido!\n");
+        return;
+    }
+
+    if (iAtacante == iDefensor) {
+        printf("\nUm território não pode atacar a si mesmo!\n");
+        return;
+    }
+
+    if (strcmp(pterritorio[iAtacante].cor, pterritorio[iDefensor].cor) == 0) {
+        printf("\nNão é possível atacar um território da mesma cor!\n");
+        return;
+    }
+
+    
+    simularAtaque(&pterritorio[iAtacante], &pterritorio[iDefensor]);
+
+    printf("\nPressione Enter para continuar...\n");
+    getchar();
+}
 // liberarMemoria():
 // Libera a memória previamente alocada para o mapa usando free.
 void liberarMemoria(){
@@ -139,7 +238,6 @@ int main() {
     // - Preenche os territórios com seus dados iniciais (tropas, donos, etc.).
     // - Define a cor do jogador e sorteia sua missão secreta.
     alocarMapa();
-
     // 2. Laço Principal do Jogo (Game Loop):
     // - Roda em um loop 'do-while' que continua até o jogador sair (opção 0) ou vencer.
     // - A cada iteração, exibe o mapa, a missão e o menu de ações.
@@ -153,15 +251,15 @@ int main() {
         switch (opcao)
         {
         case 1:
-            printf("\nQuantos territórios no total:");
-            scanf("%d", &Nterritorios);
-            alocarMapa();
             inicializarTerritorios();
             break;
         case 2:
             exibirMapa();
             break;
         case 3:
+            faseDeAtaque();
+            break;
+        case 4:
             printf("\nsaindo do sistema");
             break;
         default:
@@ -172,7 +270,7 @@ int main() {
 
         } 
         
-    } while (opcao != 3);
+    } while (opcao != 4);
 
     // 3. Limpeza:
     // - Ao final do jogo, libera a memória alocada para o mapa para evitar vazamentos de memória.
@@ -181,11 +279,6 @@ int main() {
 
 // exibirMissao():
 // Exibe a descrição da missão atual do jogador com base no ID da missão sorteada.
-
-// simularAtaque():
-// Executa a lógica de uma batalha entre dois territórios.
-// Realiza validações, rola os dados, compara os resultados e atualiza o número de tropas.
-// Se um território for conquistado, atualiza seu dono e move uma tropa.
 
 // sortearMissao():
 // Sorteia e retorna um ID de missão aleatório para o jogador.
